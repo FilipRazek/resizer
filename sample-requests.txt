@@ -1,0 +1,4 @@
+# API_KEY can be found in the Azure Portal
+
+AZURE_FUNCTION_URL="https://levymickael-fa.azurewebsites.net/api/resizerhttptrigger"
+curl --data-binary "@input.jpeg" -X POST "$AZURE_FUNCTION_URL?w=100&h=100&code=$API_KEY" -v > output.jpeg
