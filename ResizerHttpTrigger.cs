@@ -19,28 +19,64 @@ namespace NextGenCompany
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            int w = int.Parse(req.Query["w"]);
-            int h = int.Parse(req.Query["h"]);
+            if (!int.TryParse(req.Query["w"], out int w))
+            {
+                return new BadRequestObjectResult("Please pass a width on the query string");
+            }
+            if (!int.TryParse(req.Query["h"], out int h))
+            {
+                return new BadRequestObjectResult("Please pass a height on the query string");
+            }
 
             byte[] targetImageBytes;
             using (var msInput = new MemoryStream())
             {
                 // Récupère le corps du message en mémoire
-                await req.Body.CopyToAsync(msInput);
+                try
+                {
+                    await req.Body.CopyToAsync(msInput);
+                }
+                catch (Exception e) when (e is ArgumentNullException || e is ObjectDisposedException || e is NotSupportedException)
+                {
+                    return new BadRequestObjectResult("Please pass a valid image in the request body");
+                }
                 msInput.Position = 0;
 
-                // Charge l'image       
-                using (var image = Image.Load(msInput))
+                // Charge l'image
+                try
                 {
-                    // Effectue la transformation
-                    image.Mutate(x => x.Resize(w, h));
-
-                    // Sauvegarde en mémoire               
-                    using (var msOutput = new MemoryStream())
+                    using (var image = Image.Load(msInput))
                     {
-                        image.SaveAsJpeg(msOutput);
-                        targetImageBytes = msOutput.ToArray();
+                        // Effectue la transformation
+                        try
+                        {
+
+                            image.Mutate(x => x.Resize(w, h));
+                        }
+                        catch (Exception e) when (e is ArgumentNullException || e is ObjectDisposedException || e is ImageProcessingException)
+                        {
+                            return new BadRequestObjectResult("Could not resize the image");
+                        }
+
+
+                        // Sauvegarde en mémoire               
+                        using (var msOutput = new MemoryStream())
+                        {
+                            try
+                            {
+                                image.SaveAsJpeg(msOutput);
+                            }
+                            catch (ArgumentNullException)
+                            {
+                                return new BadRequestObjectResult("Could not save the image");
+                            }
+                            targetImageBytes = msOutput.ToArray();
+                        }
                     }
+                }
+                catch (Exception e) when (e is ArgumentNullException || e is NotSupportedException || e is InvalidImageContentException || e is UnknownImageFormatException)
+                {
+                    return new BadRequestObjectResult("Could not process the image");
                 }
             }
             return new FileContentResult(targetImageBytes, "image/jpeg");
