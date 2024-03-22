@@ -76,7 +76,7 @@ namespace NextGenCompany
                 }
                 catch (Exception e) when (e is ArgumentNullException || e is NotSupportedException || e is InvalidImageContentException || e is UnknownImageFormatException)
                 {
-                    return new BadRequestObjectResult("Could not process the image");
+                    return new BadRequestObjectResult("Could not process the image: " + e.Message);
                 }
             }
             return new FileContentResult(targetImageBytes, "image/jpeg");
